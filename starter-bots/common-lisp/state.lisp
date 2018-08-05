@@ -7,7 +7,7 @@
 (define-poclo game-details ((game-round "round" ()) map-width map-height 
                             (building-prices () building-prices)) camel-case)
 
-(define-poclo building-prices (energy defense attack) screaming-snake-case)
+(define-poclo building-prices (energy defense attack tesla) screaming-snake-case)
 
 (define-poclo player (player-type energy health hits-taken score) camel-case)
 

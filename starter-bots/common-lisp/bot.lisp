@@ -3,6 +3,7 @@
 (defparameter defense 0)
 (defparameter attack 1)
 (defparameter energy 2)
+(defparameter tesla 4)
 
 (defparameter state-path "state.json")
 (defparameter command-path "command.txt")
@@ -37,6 +38,32 @@
   (and (can-afford-attack-building state)
        (can-afford-defence-building state)
        (can-afford-energy-building state)))
+
+(defmethod energy-building-count ((state state))
+  (with-slots (game-map) state
+    (let ((count 0))
+      (loop for row across game-map
+         do (loop for cell across row
+               when (and (string= (cell-owner cell) "A")
+                         (find-if (lambda (building) (= (price building) 20))
+                                  (buildings cell)))
+               do (incf count)))
+      count)))
+
+(defmethod tesla-building-count ((state state))
+  (with-slots (game-map) state
+    (let ((count 0))
+      (loop for row across game-map
+         do (loop for cell across row
+               when (and (string= (cell-owner cell) "A")
+                         (find-if (lambda (building) (= (weapon-damage building) 20))
+                                  (buildings cell)))
+               do (incf count)))
+      count)))
+
+(defmethod can-afford-tesla-tower ((state state))
+  (>= (energy state)
+      (tesla (building-prices (game-details state)))))
 
 (defmethod is-opponent-attack-building ((building building-state))
   (and (string= (player-type building) "B")
@@ -86,12 +113,23 @@
        (let ((unoccupied (unoccupied-cells state)))
          (when (> (length unoccupied) 0)
            (let* ((choice (aref unoccupied (random (length unoccupied))))
-                    (building (aref (vector defense attack energy) (random 3))))
+                  (building (aref (vector defense attack energy) (random 3))))
                (make-instance 'command :x (car choice) :y (cdr choice) 
                               :building building))))))
 
-(defmethod choose-move ((state state))
-  (or (defence-building state) (random-building state)))
+(defmethod tesla-strategy ((state state))
+  (let ((unoccupied (unoccupied-cells state)))
+    (and (> (length unoccupied))
+         (let ((choice (aref unoccupied (random (length unoccupied)))))
+           (if (and (>= (energy-building-count state) 10)
+                    (can-afford-tesla-tower state)
+                    (< (tesla-building-count state) 2))
+               (make-instance 'command :x (car choice) :y (cdr choice) :building tesla)
+               (if (can-afford-energy-building state)
+                   (make-instance 'command :x (car choice) :y (cdr choice) :building energy)
+                   nil))))))
+
+(defmethod choose-move ((state state)) (tesla-strategy state))
 
 (defmethod write-command (filename (command command))
   (with-open-file (file filename :direction :output :if-does-not-exist :create 
